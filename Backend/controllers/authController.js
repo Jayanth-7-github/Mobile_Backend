@@ -28,7 +28,7 @@ exports.login = (sessions) => async (req, res) => {
     sessions[token] = username;
     // Set token as HTTP-only cookie
     res.cookie("token", token, { httpOnly: true });
-    res.json({ success: true });
+    res.json({ success: true, token });
   } catch (e) {
     res.status(500).json({ error: "Server error" });
   }
