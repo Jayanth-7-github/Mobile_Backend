@@ -2,6 +2,7 @@
 const express = require("express");
 const fs = require("fs");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 
 const connectDB = require("./models/db");
@@ -15,7 +16,8 @@ const taskController = require("./controllers/taskController");
 const sessions = {};
 
 function authMiddleware(req, res, next) {
-  const token = req.headers["authorization"];
+  // Check token in cookies first, then headers
+  const token = req.cookies.token || req.headers["authorization"];
   if (!token || !sessions[token]) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -23,14 +25,15 @@ function authMiddleware(req, res, next) {
   next();
 }
 
+app.use(cors());
+app.use(express.json());
+app.use(cookieParser());
+
 // Signup endpoint
 app.post("/api/signup", authController.signup);
 
 // Login endpoint
 app.post("/api/login", authController.login(sessions));
-
-app.use(cors());
-app.use(express.json());
 
 const DATA_FILE = path.join(__dirname, "tasks.json");
 

@@ -26,7 +26,9 @@ exports.login = (sessions) => async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     const token = Math.random().toString(36).substring(2);
     sessions[token] = username;
-    res.json({ success: true, token });
+    // Set token as HTTP-only cookie
+    res.cookie("token", token, { httpOnly: true });
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: "Server error" });
   }
