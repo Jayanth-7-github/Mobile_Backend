@@ -33,3 +33,13 @@ exports.login = (sessions) => async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+// Logout endpoint factory
+exports.logout = (sessions) => (req, res) => {
+  const token = req.cookies.token;
+  if (token && sessions[token]) {
+    delete sessions[token];
+  }
+  res.clearCookie("token");
+  res.json({ success: true, message: "Logged out successfully" });
+};

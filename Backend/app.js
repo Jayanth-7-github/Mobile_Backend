@@ -35,6 +35,9 @@ app.post("/api/signup", authController.signup);
 // Login endpoint
 app.post("/api/login", authController.login(sessions));
 
+// Logout endpoint
+app.post("/api/logout", authController.logout(sessions));
+
 const DATA_FILE = path.join(__dirname, "tasks.json");
 
 function readData() {
