@@ -11,6 +11,7 @@ const PORT = 5000;
 
 const authController = require("./controllers/authController");
 const taskController = require("./controllers/taskController");
+const User = require("./models/user");
 
 // Simple in-memory session (for demo only)
 const sessions = {};
@@ -57,6 +58,23 @@ app.get("/api/tasks", authMiddleware, taskController.getTasks);
 app.post("/api/tasks", authMiddleware, taskController.addTask);
 app.put("/api/tasks/:id", authMiddleware, taskController.editTask);
 app.delete("/api/tasks/:id", authMiddleware, taskController.deleteTask);
+
+// Check login endpoint
+app.get("/api/checklogin", authMiddleware, async (req, res) => {
+  try {
+    const username = req.user;
+    if (!username) {
+      return res.status(400).json({ error: "User id not found" });
+    }
+    const user = await User.findOne({ username }).select("username");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    res.status(200).json({ status: true, message: user });
+  } catch (e) {
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 connectDB().then(() => {
   app.listen(PORT, () => {
