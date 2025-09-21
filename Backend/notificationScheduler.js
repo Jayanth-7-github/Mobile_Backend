@@ -28,10 +28,12 @@ async function sendDueNotifications() {
           `Notification sent to ${user.username} for task ${task.title}`
         );
       } catch (e) {
-        console.warn(
-          `Failed to send notification to ${user.username}:`,
-          e.message
-        );
+        const fs = require("fs");
+        const logMsg = `[${new Date().toISOString()}] Failed to send notification to ${
+          user.username
+        } for task ${task.title}: ${e.message}\n`;
+        fs.appendFileSync("notification-errors.log", logMsg);
+        console.error(logMsg);
       }
     }
   }

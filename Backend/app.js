@@ -136,6 +136,31 @@ app.post("/api/update-device-token", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to update device token" });
   }
 });
+// Dummy notification endpoint for testing
+app.post("/api/test-notification", authMiddleware, async (req, res) => {
+  if (!fcmInitialized) {
+    return res.status(503).json({ error: "FCM not initialized." });
+  }
+  const username = req.user;
+  try {
+    const user = await User.findOne({ username });
+    if (!user || !user.deviceToken) {
+      return res.status(400).json({ error: "No device token found for user." });
+    }
+    await admin.messaging().send({
+      notification: {
+        title: "Welcome Back!",
+        body: `Welcome back, ${username}! This is a test notification.`,
+      },
+      token: user.deviceToken,
+    });
+    res.json({ success: true, message: "Test notification sent." });
+  } catch (e) {
+    res
+      .status(500)
+      .json({ error: "Failed to send test notification", details: e.message });
+  }
+});
 
 const startScheduler = require("./notificationScheduler");
 connectDB().then(() => {
