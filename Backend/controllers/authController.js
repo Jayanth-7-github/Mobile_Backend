@@ -17,13 +17,18 @@ exports.signup = async (req, res) => {
 };
 
 exports.login = (sessions) => async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, deviceToken } = req.body;
   if (!username || !password)
     return res.status(400).json({ error: "Username and password required" });
   try {
     const user = await User.findOne({ username });
     if (!user || user.password !== password)
       return res.status(401).json({ error: "Invalid credentials" });
+    // Save deviceToken if provided
+    if (deviceToken) {
+      user.deviceToken = deviceToken;
+      await user.save();
+    }
     const token = Math.random().toString(36).substring(2);
     sessions[token] = username;
     // Set token as HTTP-only cookie
