@@ -4,7 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const admin = require("firebase-admin");
 
 const connectDB = require("./models/db");
 const authController = require("./controllers/authController");
@@ -14,24 +13,6 @@ const User = require("./models/user");
 // Create express app early (before routes)
 const app = express();
 const PORT = 5000;
-
-// --- Push Notification Setup (Firebase Cloud Messaging) ---
-const fcmKeyPath = path.join(__dirname, "firebase-service-account.json");
-let fcmInitialized = false;
-if (fs.existsSync(fcmKeyPath)) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.cert(require(fcmKeyPath)),
-    });
-    fcmInitialized = true;
-  } catch (e) {
-    console.warn("FCM initialization failed:", e.message);
-  }
-} else {
-  console.warn(
-    "FCM not initialized. Add firebase-service-account.json for push notifications."
-  );
-}
 
 // Simple in-memory session (for demo only)
 const sessions = {};
@@ -96,177 +77,8 @@ app.get("/api/checklogin", authMiddleware, async (req, res) => {
   }
 });
 
-// --- Endpoint to send FCM push notification ---
-app.post("/api/send-notification", async (req, res) => {
-  if (!fcmInitialized) {
-    return res.status(503).json({
-      error: "FCM not initialized. Add firebase-service-account.json.",
-    });
-  }
-  const { deviceToken, title, body } = req.body;
-  if (!deviceToken || !title || !body) {
-    return res
-      .status(400)
-      .json({ error: "deviceToken, title, and body required" });
-  }
-  try {
-    const message = {
-      notification: { title, body },
-      token: deviceToken,
-    };
-    const response = await admin.messaging().send(message);
-    res.json({ success: true, response });
-  } catch (e) {
-    res
-      .status(500)
-      .json({ error: "Notification send failed", details: e.message });
-  }
-});
-
-// --- Endpoint to send Expo push notification ---
-const fetch = require("node-fetch");
-app.post("/api/send-expo-notification", async (req, res) => {
-  const { expoPushToken, title, body } = req.body;
-  if (!expoPushToken || !title || !body) {
-    return res
-      .status(400)
-      .json({ error: "expoPushToken, title, and body required" });
-  }
-  try {
-    const message = {
-      to: expoPushToken,
-      sound: "default",
-      title,
-      body,
-      data: { someData: "value" },
-    };
-    const response = await fetch("https://exp.host/--/api/v2/push/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message),
-    });
-    const result = await response.json();
-    res.json({ success: true, result });
-  } catch (e) {
-    res
-      .status(500)
-      .json({ error: "Expo notification send failed", details: e.message });
-  }
-});
-// Add this endpoint to update device token for logged-in user
-// Update device token endpoint to support both FCM and Expo tokens
-app.post("/api/update-device-token", authMiddleware, async (req, res) => {
-  const { deviceToken, expoPushToken } = req.body;
-  const username = req.user;
-  if (!username) {
-    return res.status(400).json({ error: "Missing user" });
-  }
-  if (!deviceToken && !expoPushToken) {
-    return res.status(400).json({ error: "No token provided" });
-  }
-  try {
-    const update = {};
-    if (deviceToken) update.deviceToken = deviceToken;
-    if (expoPushToken) update.expoPushToken = expoPushToken;
-    await User.findOneAndUpdate({ username }, update);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: "Failed to update device token(s)" });
-  }
-});
-// Dummy notification endpoint for testing
-app.post("/api/test-notification", authMiddleware, async (req, res) => {
-  if (!fcmInitialized) {
-    return res.status(503).json({ error: "FCM not initialized." });
-  }
-  const username = req.user;
-  try {
-    const user = await User.findOne({ username });
-    if (!user || !user.deviceToken) {
-      return res.status(400).json({ error: "No device token found for user." });
-    }
-    await admin.messaging().send({
-      notification: {
-        title: "Welcome Back!",
-        body: `Welcome back, ${username}! This is a test notification.`,
-      },
-      token: user.deviceToken,
-    });
-    res.json({ success: true, message: "Test notification sent." });
-  } catch (e) {
-    res
-      .status(500)
-      .json({ error: "Failed to send test notification", details: e.message });
-  }
-});
-// Unified endpoint to send notification to a user (FCM or Expo)
-app.post("/api/send-user-notification", authMiddleware, async (req, res) => {
-  const username = req.user;
-  const { title, body } = req.body;
-  if (!username || !title || !body) {
-    return res.status(400).json({ error: "Missing username, title, or body" });
-  }
-  try {
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    // Try FCM first
-    if (user.deviceToken) {
-      if (!fcmInitialized) {
-        return res.status(503).json({ error: "FCM not initialized." });
-      }
-      try {
-        const message = {
-          notification: { title, body },
-          token: user.deviceToken,
-        };
-        const response = await admin.messaging().send(message);
-        return res.json({ success: true, method: "FCM", response });
-      } catch (e) {
-        // FCM failed, try Expo if available
-        console.warn("FCM send failed, trying Expo:", e.message);
-      }
-    }
-    // Try Expo
-    if (user.expoPushToken) {
-      try {
-        const message = {
-          to: user.expoPushToken,
-          sound: "default",
-          title,
-          body,
-          data: { someData: "value" },
-        };
-        const response = await fetch("https://exp.host/--/api/v2/push/send", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(message),
-        });
-        const result = await response.json();
-        return res.json({ success: true, method: "Expo", result });
-      } catch (e) {
-        return res
-          .status(500)
-          .json({ error: "Expo notification send failed", details: e.message });
-      }
-    }
-    // No token found
-    return res.status(400).json({ error: "No push token found for user." });
-  } catch (e) {
-    res
-      .status(500)
-      .json({ error: "Failed to send notification", details: e.message });
-  }
-});
-
-const startScheduler = require("./notificationScheduler");
 connectDB().then(() => {
   app.listen(PORT, () => {
     console.log(`API server running at http://localhost:${PORT}/api`);
-    if (fcmInitialized) {
-      startScheduler();
-      console.log("Notification scheduler started.");
-    }
   });
 });
