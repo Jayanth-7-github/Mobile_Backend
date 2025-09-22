@@ -10,10 +10,11 @@ exports.getTasks = async (req, res) => {
         title: t.title,
         description: t.description,
         status: t.status,
-        taskTime: t.taskTime,
-        createdAt: t.createdAt,
-        updatedAt: t.updatedAt,
         priority: t.priority,
+        repeat: t.repeat,
+        days: t.days,
+        date: t.date,
+        time: t.time,
       })),
     });
   } catch (e) {
@@ -22,17 +23,27 @@ exports.getTasks = async (req, res) => {
 };
 
 exports.addTask = async (req, res) => {
-  const user = req.user;
-  const { title, description, status, taskTime, priority } = req.body;
+  const {
+    title,
+    description,
+    status,
+    priority,
+    repeat, // 'once', 'days', or 'date'
+    days, // array of weekday names
+    date, // 'YYYY-MM-DD'
+    time, // 'HH:mm'
+  } = req.body;
   if (!title) return res.status(400).json({ error: "Title required" });
   try {
     const newTask = await Task.create({
-      user,
       title,
       description,
       status,
-      taskTime,
       priority,
+      repeat,
+      days: Array.isArray(days) ? days : [],
+      date,
+      time,
     });
     res.json({
       success: true,
@@ -41,10 +52,11 @@ exports.addTask = async (req, res) => {
         title: newTask.title,
         description: newTask.description,
         status: newTask.status,
-        taskTime: newTask.taskTime,
-        createdAt: newTask.createdAt,
-        updatedAt: newTask.updatedAt,
         priority: newTask.priority,
+        repeat: newTask.repeat,
+        days: newTask.days,
+        date: newTask.date,
+        time: newTask.time,
       },
     });
   } catch (e) {
@@ -53,8 +65,16 @@ exports.addTask = async (req, res) => {
 };
 
 exports.editTask = async (req, res) => {
-  const user = req.user;
-  const { title, description, status, taskTime, priority } = req.body;
+  const {
+    title,
+    description,
+    status,
+    priority,
+    repeat, // 'once', 'days', or 'date'
+    days, // array of weekday names
+    date, // 'YYYY-MM-DD'
+    time, // 'HH:mm'
+  } = req.body;
   const { id } = req.params;
   if (!title) return res.status(400).json({ error: "Title required" });
   try {
@@ -62,11 +82,13 @@ exports.editTask = async (req, res) => {
       title,
       description,
       status,
-      taskTime,
       priority,
-      updatedAt: Date.now(),
+      repeat,
+      days: Array.isArray(days) ? days : [],
+      date,
+      time,
     };
-    const task = await Task.findOneAndUpdate({ _id: id, user }, updateFields, {
+    const task = await Task.findOneAndUpdate({ _id: id }, updateFields, {
       new: true,
     });
     if (!task) return res.status(404).json({ error: "Task not found" });
@@ -77,10 +99,11 @@ exports.editTask = async (req, res) => {
         title: task.title,
         description: task.description,
         status: task.status,
-        taskTime: task.taskTime,
-        createdAt: task.createdAt,
-        updatedAt: task.updatedAt,
         priority: task.priority,
+        repeat: task.repeat,
+        days: task.days,
+        date: task.date,
+        time: task.time,
       },
     });
   } catch (e) {

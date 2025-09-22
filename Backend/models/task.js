@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 
 const taskSchema = new mongoose.Schema({
-  user: { type: String, required: true },
   title: { type: String, required: true },
   description: { type: String },
   status: {
@@ -9,21 +8,25 @@ const taskSchema = new mongoose.Schema({
     enum: ["pending", "in-progress", "completed", "cancelled"],
     default: "pending",
   },
-  taskTime: { type: Date }, // Scheduled time for the task
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
   priority: {
     type: String,
     enum: ["low", "medium", "high"],
     default: "medium",
   },
-  // Add more fields as needed
+  // Repeat options:
+  repeat: {
+    type: String,
+    enum: ["once", "days", "date"],
+    default: "once",
+    required: true,
+  },
+  // If repeat is 'days', store array of weekday names
+  days: { type: [String], default: [] }, // e.g., ['Monday', 'Wednesday']
+  // If repeat is 'date', store array of dates and time
+  dates: { type: [String], default: [] }, // e.g., ['2025-09-23', '2025-09-25']
+  time: { type: String }, // e.g., '18:00'
 });
 
 // Update updatedAt on save
-taskSchema.pre("save", function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
 
 module.exports = mongoose.model("Task", taskSchema);
