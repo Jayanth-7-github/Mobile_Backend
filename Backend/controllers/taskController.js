@@ -2,9 +2,11 @@ const Task = require("../models/task");
 
 exports.getTasks = async (req, res) => {
   const user = req.user;
+  console.log("User from cookies/session:", user);
   try {
     const tasks = await Task.find({ user });
     res.json({
+      user,
       tasks: tasks.map((t) => ({
         id: t._id,
         title: t.title,
@@ -13,8 +15,11 @@ exports.getTasks = async (req, res) => {
         priority: t.priority,
         repeat: t.repeat,
         days: t.days,
-        date: t.date,
+        dates: t.dates,
         time: t.time,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        user: t.user,
       })),
     });
   } catch (e) {
@@ -23,6 +28,8 @@ exports.getTasks = async (req, res) => {
 };
 
 exports.addTask = async (req, res) => {
+  const user = req.user;
+  console.log("User from cookies/session:", user);
   const {
     title,
     description,
@@ -30,23 +37,25 @@ exports.addTask = async (req, res) => {
     priority,
     repeat, // 'once', 'days', or 'date'
     days, // array of weekday names
-    date, // 'YYYY-MM-DD'
+    dates, // array of 'YYYY-MM-DD' for repeat='date'
     time, // 'HH:mm'
   } = req.body;
   if (!title) return res.status(400).json({ error: "Title required" });
   try {
     const newTask = await Task.create({
+      user,
       title,
       description,
       status,
       priority,
       repeat,
       days: Array.isArray(days) ? days : [],
-      date,
+      dates: Array.isArray(dates) ? dates : [],
       time,
     });
     res.json({
       success: true,
+      user,
       task: {
         id: newTask._id,
         title: newTask.title,
@@ -55,8 +64,11 @@ exports.addTask = async (req, res) => {
         priority: newTask.priority,
         repeat: newTask.repeat,
         days: newTask.days,
-        date: newTask.date,
+        dates: newTask.dates,
         time: newTask.time,
+        createdAt: newTask.createdAt,
+        updatedAt: newTask.updatedAt,
+        user: newTask.user,
       },
     });
   } catch (e) {
@@ -65,6 +77,8 @@ exports.addTask = async (req, res) => {
 };
 
 exports.editTask = async (req, res) => {
+  const user = req.user;
+  console.log("User from cookies/session:", user);
   const {
     title,
     description,
@@ -72,28 +86,30 @@ exports.editTask = async (req, res) => {
     priority,
     repeat, // 'once', 'days', or 'date'
     days, // array of weekday names
-    date, // 'YYYY-MM-DD'
+    dates, // array of 'YYYY-MM-DD' for repeat='date'
     time, // 'HH:mm'
   } = req.body;
   const { id } = req.params;
   if (!title) return res.status(400).json({ error: "Title required" });
   try {
     const updateFields = {
+      user,
       title,
       description,
       status,
       priority,
       repeat,
       days: Array.isArray(days) ? days : [],
-      date,
+      dates: Array.isArray(dates) ? dates : [],
       time,
     };
-    const task = await Task.findOneAndUpdate({ _id: id }, updateFields, {
+    const task = await Task.findOneAndUpdate({ _id: id, user }, updateFields, {
       new: true,
     });
     if (!task) return res.status(404).json({ error: "Task not found" });
     res.json({
       success: true,
+      user,
       task: {
         id: task._id,
         title: task.title,
@@ -102,8 +118,11 @@ exports.editTask = async (req, res) => {
         priority: task.priority,
         repeat: task.repeat,
         days: task.days,
-        date: task.date,
+        dates: task.dates,
         time: task.time,
+        createdAt: task.createdAt,
+        updatedAt: task.updatedAt,
+        user: task.user,
       },
     });
   } catch (e) {
@@ -113,6 +132,7 @@ exports.editTask = async (req, res) => {
 
 exports.deleteTask = async (req, res) => {
   const user = req.user;
+  console.log("User from cookies/session:", user);
   const { id } = req.params;
   try {
     const result = await Task.findOneAndDelete({ _id: id, user });
